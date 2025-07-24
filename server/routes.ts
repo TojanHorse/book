@@ -79,11 +79,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await user.save();
 
       // Send verification email
+      let emailSent = false;
       try {
         await sendVerificationEmail(email, emailVerificationToken);
+        emailSent = true;
       } catch (emailError) {
-        console.error('Failed to send verification email:', emailError);
+        console.error('❌ Failed to send verification email:', emailError);
         // Don't fail the registration if email fails
+      }
+
+      console.log(`📧 Email sending status for ${email}:`, emailSent ? 'SUCCESS' : 'FAILED');
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🔗 Manual verification link: http://localhost:5000/api/auth/verify-email?token=${emailVerificationToken}`);
       }
 
       res.status(201).json({ 
@@ -94,7 +101,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           email: user.email,
           uniqueAppId: user.uniqueAppId,
           isVerified: user.isVerified
-        }
+        },
+        // Include verification link in response for development/testing
+        ...(process.env.NODE_ENV === 'development' && {
+          verificationLink: `http://localhost:5000/api/auth/verify-email?token=${emailVerificationToken}`
+        })
       });
     } catch (error: any) {
       console.error('Registration error:', error);
@@ -250,6 +261,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User search route
+  app.get('/api/users/search', authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { query } = req.query;
+      const currentUserId = req.userId;
+
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ message: 'Search query is required' });
+      }
+
+      // Search for users by username or uniqueAppId (case-insensitive)
+      const users = await User.find({
+        _id: { $ne: currentUserId }, // Exclude current user
+        isVerified: true, // Only show verified users
+        $or: [
+          { username: { $regex: query, $options: 'i' } },
+          { uniqueAppId: { $regex: query, $options: 'i' } }
+        ]
+      })
+      .select('username uniqueAppId lastActive')
+      .limit(10);
+
+      res.json(users);
+    } catch (error) {
+      console.error('User search error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   // Chat routes
   app.get('/api/chat/conversations', authenticateToken, async (req: AuthRequest, res) => {
     try {
@@ -308,6 +348,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: 'Internal server error' });
     }
   });
+
+  // Debug routes (development only)
+  if (process.env.NODE_ENV === 'development') {
+    app.get('/api/debug/unverified-users', async (req, res) => {
+      try {
+        const users = await User.find({ isVerified: false })
+          .select('username email uniqueAppId emailVerificationToken createdAt')
+          .sort({ createdAt: -1 })
+          .limit(10);
+
+        const usersWithLinks = users.map(user => ({
+          ...user.toObject(),
+          verificationLink: user.emailVerificationToken 
+            ? `http://localhost:5000/api/auth/verify-email?token=${user.emailVerificationToken}`
+            : null
+        }));
+
+        res.json({
+          message: 'Unverified users (development only)',
+          users: usersWithLinks
+        });
+      } catch (error) {
+        console.error('Debug unverified users error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+      }
+    });
+  }
 
   const httpServer = createServer(app);
   
