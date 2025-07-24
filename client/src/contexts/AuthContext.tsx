@@ -24,12 +24,10 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Configure axios defaults - handle different ports dynamically
-const API_BASE_URL = import.meta.env.VITE_API_URL || 
-  (import.meta.env.PROD ? '/api' : 'http://localhost:3001/api');
-axios.defaults.baseURL = API_BASE_URL;
+// Configure axios defaults for Replit environment
+axios.defaults.baseURL = '/api';
 
-console.log('🔧 API Base URL:', API_BASE_URL);
+console.log('🔧 API Base URL:', '/api');
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -54,7 +52,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const checkAuth = async () => {
       if (token) {
         try {
-          const response = await axios.get('/api/auth/me');
+          const response = await axios.get('/auth/me');
           setUser(response.data.user);
         } catch (error) {
           console.error('Auth check failed:', error);
@@ -71,7 +69,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const response = await axios.post('/api/auth/login', { email, password });
+      const response = await axios.post('/auth/login', { email, password });
       const { token: newToken, user: userData } = response.data;
       
       setToken(newToken);
@@ -93,7 +91,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const register = async (username: string, email: string, password: string): Promise<boolean> => {
     try {
-      const response = await axios.post('/api/auth/register', { 
+      const response = await axios.post('/auth/register', { 
         username, 
         email, 
         password 
@@ -110,17 +108,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const verifyEmail = async (verificationToken: string): Promise<boolean> => {
     try {
-      const response = await axios.post('/api/auth/verify-email', { 
-        token: verificationToken 
-      });
+      const response = await axios.get(`/auth/verify-email?token=${verificationToken}`);
       
-      const { token: newToken, user: userData } = response.data;
+      // Email verification successful, but user still needs to login
+      // Don't automatically log them in
       
-      setToken(newToken);
-      setUser(userData);
-      localStorage.setItem('token', newToken);
-      
-      toast.success('Email verified successfully! Welcome to the Digital Library.');
+      toast.success('Email verified successfully! Please log in to access the Digital Library.');
       return true;
     } catch (error: any) {
       const message = error.response?.data?.error || 'Email verification failed';
