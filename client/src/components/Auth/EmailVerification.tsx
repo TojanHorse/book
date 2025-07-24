@@ -13,8 +13,33 @@ const EmailVerification: React.FC = () => {
 
   useEffect(() => {
     const urlParams = new URLSearchParams(search);
+    const success = urlParams.get('success');
+    const error = urlParams.get('error');
     const token = urlParams.get('token');
-    if (token) {
+
+    if (success === 'true') {
+      setStatus('success');
+      setMessage('Email verified successfully! You can now log in to access the Digital Library.');
+      setTimeout(() => {
+        setLocation('/auth/login');
+      }, 3000);
+    } else if (error) {
+      setStatus('error');
+      switch (error) {
+        case 'missing_token':
+          setMessage('Invalid verification link - token is missing.');
+          break;
+        case 'invalid_token':
+          setMessage('Invalid or expired verification token. Please request a new verification email.');
+          break;
+        case 'server_error':
+          setMessage('Server error occurred during verification. Please try again.');
+          break;
+        default:
+          setMessage('Verification failed. Please try again.');
+      }
+    } else if (token) {
+      // Handle old-style token verification for backward compatibility
       handleVerification(token);
     } else {
       setStatus('error');
@@ -117,7 +142,7 @@ const EmailVerification: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => navigate('/auth/login')}
+                  onClick={() => setLocation('/auth/login')}
                   className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors book-font font-medium"
                 >
                   Back to Login

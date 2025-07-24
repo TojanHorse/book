@@ -187,22 +187,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { token } = req.query;
 
       if (!token) {
-        return res.status(400).json({ message: 'Verification token is required' });
+        // Redirect to frontend verification page with error
+        return res.redirect('/verify-email?error=missing_token');
       }
 
       const user = await User.findOne({ emailVerificationToken: token });
       if (!user) {
-        return res.status(400).json({ message: 'Invalid or expired verification token' });
+        // Redirect to frontend verification page with error
+        return res.redirect('/verify-email?error=invalid_token');
       }
 
       user.isVerified = true;
       user.emailVerificationToken = undefined;
       await user.save();
 
-      res.json({ message: 'Email verified successfully' });
+      console.log(`✅ Email verified successfully for user: ${user.email}`);
+      
+      // Redirect to frontend verification page with success
+      res.redirect('/verify-email?success=true');
     } catch (error) {
       console.error('Email verification error:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      res.redirect('/verify-email?error=server_error');
     }
   });
 
