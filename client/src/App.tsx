@@ -1,5 +1,4 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Router, Route, Switch, Redirect } from 'wouter';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
@@ -13,50 +12,49 @@ import './App.css';
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100">
-          <Toaster 
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#363636',
-                color: '#fff',
-              },
-            }}
-          />
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100">
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#363636',
+              color: '#fff',
+            },
+          }}
+        />
+        
+        <Switch>
+          {/* Public routes */}
+          <Route path="/auth/:page?" component={AuthPages} />
+          <Route path="/verify-email" component={EmailVerification} />
           
-          <Routes>
-            {/* Public routes */}
-            <Route path="/auth/*" element={<AuthPages />} />
-            <Route path="/verify-email" element={<EmailVerification />} />
-            
-            {/* Protected routes */}
-            <Route 
-              path="/book" 
-              element={
-                <ProtectedRoute>
-                  <BookDisguise />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/chat" 
-              element={
-                <ProtectedRoute>
-                  <SocketProvider>
-                    <ChatApp />
-                  </SocketProvider>
-                </ProtectedRoute>
-              } 
-            />
-            
-            {/* Default redirect */}
-            <Route path="/" element={<Navigate to="/book" replace />} />
-            <Route path="*" element={<Navigate to="/book" replace />} />
-          </Routes>
-        </div>
-      </Router>
+          {/* Protected routes */}
+          <Route path="/book">
+            <ProtectedRoute>
+              <BookDisguise />
+            </ProtectedRoute>
+          </Route>
+          
+          <Route path="/chat">
+            <ProtectedRoute>
+              <SocketProvider>
+                <ChatApp />
+              </SocketProvider>
+            </ProtectedRoute>
+          </Route>
+          
+          {/* Default redirect */}
+          <Route path="/">
+            <Redirect to="/book" />
+          </Route>
+          
+          {/* Catch all route */}
+          <Route>
+            <Redirect to="/book" />
+          </Route>
+        </Switch>
+      </div>
     </AuthProvider>
   );
 }

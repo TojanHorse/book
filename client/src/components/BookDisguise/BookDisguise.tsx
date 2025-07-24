@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import { useAuth } from '../../contexts/AuthContext';
 import BookCover from './BookCover';
 import BookContent from './BookContent';
@@ -27,7 +27,7 @@ const BookDisguise: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [secretProgress, setSecretProgress] = useState(0);
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
 
   // Fetch random book from Gutendex API
   useEffect(() => {
@@ -102,7 +102,7 @@ const BookDisguise: React.FC = () => {
       const newProgress = prev + 1;
       if (newProgress >= 5) {
         // Secret revealed! Navigate to chat
-        navigate('/chat');
+        setLocation('/chat');
       }
       return newProgress;
     });

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import { Conversation } from './ChatApp';
 import { ArrowLeft, User, MoreVertical, UserX, Trash2 } from 'lucide-react';
 import axios from 'axios';
@@ -12,13 +12,13 @@ interface ChatHeaderProps {
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({ conversation, currentUserId }) => {
   const [showMenu, setShowMenu] = useState(false);
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
 
   const handleDeleteConversation = async () => {
     try {
       await axios.delete(`/chat/conversations/${conversation._id}`);
       toast.success('Conversation deleted');
-      navigate('/chat');
+      setLocation('/chat');
     } catch (error) {
       toast.error('Failed to delete conversation');
     }
@@ -33,7 +33,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ conversation, currentUserId }) 
         action: 'block'
       });
       toast.success('User blocked');
-      navigate('/chat');
+      setLocation('/chat');
     } catch (error) {
       toast.error('Failed to block user');
     }
@@ -45,7 +45,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ conversation, currentUserId }) 
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <button  
-            onClick={() => navigate('/chat')}
+            onClick={() => setLocation('/chat')}
             className="p-1 text-gray-600 hover:text-gray-800 lg:hidden"
           >
             <ArrowLeft className="w-5 h-5" />

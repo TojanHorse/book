@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import { useAuth } from '../../contexts/AuthContext';
 import { Conversation } from './ChatApp';
 import { MessageCircle, Plus, BookOpen, User, Wifi, WifiOff } from 'lucide-react';
@@ -22,7 +22,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   isConnected
 }) => {
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -75,7 +75,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
             </div>
             
             <button
-              onClick={() => navigate('/book')}
+              onClick={() => setLocation('/book')}
               className="p-2 text-gray-600 hover:text-amber-700 hover:bg-gray-100 rounded-lg transition-colors"
               title="Back to Book"
             >

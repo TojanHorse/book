@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Routes, Route, Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, Route, Switch } from 'wouter';
 import { useAuth } from '../../contexts/AuthContext';
 import { BookOpen, User, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 
@@ -9,7 +9,7 @@ const LoginForm: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,7 +17,7 @@ const LoginForm: React.FC = () => {
     
     const success = await login(email, password);
     if (success) {
-      navigate('/book');
+      setLocation('/book');
     }
     
     setIsLoading(false);
@@ -107,7 +107,7 @@ const RegisterForm: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const { register } = useAuth();
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,7 +127,7 @@ const RegisterForm: React.FC = () => {
     const success = await register(username, email, password);
     
     if (success) {
-      navigate('/auth/login');
+      setLocation('/auth/login');
     }
     
     setIsLoading(false);
@@ -251,11 +251,11 @@ const RegisterForm: React.FC = () => {
 const AuthPages: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <Routes>
-        <Route path="login" element={<LoginForm />} />
-        <Route path="register" element={<RegisterForm />} />
-        <Route path="*" element={<LoginForm />} />
-      </Routes>
+      <Switch>
+        <Route path="/auth/login" component={LoginForm} />
+        <Route path="/auth/register" component={RegisterForm} />
+        <Route path="/auth/*" component={LoginForm} />
+      </Switch>
     </div>
   );
 };

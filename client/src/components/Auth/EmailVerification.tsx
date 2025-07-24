@@ -1,25 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearch, useLocation } from 'wouter';
 import { useAuth } from '../../contexts/AuthContext';
 import { BookOpen, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 
 const EmailVerification: React.FC = () => {
-  const [searchParams] = useSearchParams();
+  const search = useSearch();
   const { verifyEmail, resendVerification } = useAuth();
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
   const [message, setMessage] = useState('');
   const [email, setEmail] = useState('');
 
   useEffect(() => {
-    const token = searchParams.get('token');
+    const urlParams = new URLSearchParams(search);
+    const token = urlParams.get('token');
     if (token) {
       handleVerification(token);
     } else {
       setStatus('error');
       setMessage('Invalid verification link');
     }
-  }, [searchParams]);
+  }, [search]);
 
   const handleVerification = async (token: string) => {
     try {
@@ -28,7 +29,7 @@ const EmailVerification: React.FC = () => {
         setStatus('success');
         setMessage('Email verified successfully! Redirecting to library...');
         setTimeout(() => {
-          navigate('/book');
+          setLocation('/book');
         }, 2000);
       } else {
         setStatus('error');

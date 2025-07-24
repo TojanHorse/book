@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Redirect } from 'wouter';
 import { useAuth } from '../../contexts/AuthContext';
 import { BookOpen } from 'lucide-react';
 
@@ -22,11 +22,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   if (!user) {
-    return <Navigate to="/auth/login" replace />;
+    return <Redirect to="/auth/login" />;
   }
 
   if (!user.isVerified) {
-    return <Navigate to="/verify-email" replace />;
+    return <Redirect to="/verify-email" />;
   }
 
   return <>{children}</>;
