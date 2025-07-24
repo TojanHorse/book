@@ -29,6 +29,8 @@ const BookDisguise: React.FC = () => {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
 
+  console.log('BookDisguise component rendering, user:', user);
+
   // Fetch random book from Gutendex API
   useEffect(() => {
     const fetchRandomBook = async () => {

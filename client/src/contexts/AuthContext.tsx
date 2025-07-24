@@ -50,18 +50,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Check for existing session on app load
   useEffect(() => {
     const checkAuth = async () => {
+      console.log('🔄 Checking authentication, token exists:', !!token);
       if (token) {
         try {
           const response = await axios.get('/auth/me');
+          console.log('✅ Auth check successful, user:', response.data.user);
           setUser(response.data.user);
         } catch (error) {
-          console.error('Auth check failed:', error);
+          console.error('❌ Auth check failed:', error);
           // Clear invalid token
           localStorage.removeItem('token');
           setToken(null);
         }
+      } else {
+        console.log('📝 No token found, user not authenticated');
       }
       setIsLoading(false);
+      console.log('🏁 Auth check complete, isLoading set to false');
     };
 
     checkAuth();
@@ -76,6 +81,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(userData);
       localStorage.setItem('token', newToken);
       
+      console.log('✅ Login successful, user data:', userData);
       toast.success(`Welcome back, ${userData.username}!`);
       return true;
     } catch (error: any) {

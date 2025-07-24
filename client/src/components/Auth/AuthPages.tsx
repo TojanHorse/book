@@ -16,8 +16,12 @@ const LoginForm: React.FC = () => {
     setIsLoading(true);
     
     const success = await login(email, password);
+    console.log('Login result:', success);
     if (success) {
+      console.log('Redirecting to /book');
       setLocation('/book');
+    } else {
+      console.log('Login failed, staying on login page');
     }
     
     setIsLoading(false);
