@@ -79,7 +79,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       toast.success(`Welcome back, ${userData.username}!`);
       return true;
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Login failed';
+      const message = error.response?.data?.message || 'Login failed';
       toast.error(message);
       
       if (error.response?.data?.needsVerification) {
@@ -100,7 +100,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       toast.success('Registration successful! Please check your email for verification.');
       return true;
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Registration failed';
+      const message = error.response?.data?.message || 'Registration failed';
       toast.error(message);
       return false;
     }
@@ -116,7 +116,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       toast.success('Email verified successfully! Please log in to access the Digital Library.');
       return true;
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Email verification failed';
+      const message = error.response?.data?.message || 'Email verification failed';
       toast.error(message);
       return false;
     }
@@ -124,11 +124,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const resendVerification = async (email: string): Promise<boolean> => {
     try {
-      await axios.post('/api/auth/resend-verification', { email });
+      await axios.post('/auth/resend-verification', { email });
       toast.success('Verification email sent! Please check your inbox.');
       return true;
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Failed to resend verification email';
+      const message = error.response?.data?.message || 'Failed to resend verification email';
       toast.error(message);
       return false;
     }

@@ -9,6 +9,7 @@ import { User } from './models/User';
 import { Conversation } from './models/Conversation';
 import { Message } from './models/Message';
 import { authenticateToken, AuthRequest } from './middleware/auth';
+import { sendVerificationEmail } from './utils/emailService';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Connect to MongoDB
@@ -18,6 +19,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/register', async (req, res) => {
     try {
       const { username, email, password } = req.body;
+
+      // Validation
+      if (!username || !email || !password) {
+        return res.status(400).json({ 
+          message: 'Username, email, and password are required' 
+        });
+      }
+
+      if (username.length < 3) {
+        return res.status(400).json({ 
+          message: 'Username must be at least 3 characters long' 
+        });
+      }
+
+      if (password.length < 6) {
+        return res.status(400).json({ 
+          message: 'Password must be at least 6 characters long' 
+        });
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ 
+          message: 'Please enter a valid email address' 
+        });
+      }
 
       // Check if user already exists
       const existingUser = await User.findOne({
@@ -51,6 +78,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await user.save();
 
+      // Send verification email
+      try {
+        await sendVerificationEmail(email, emailVerificationToken);
+      } catch (emailError) {
+        console.error('Failed to send verification email:', emailError);
+        // Don't fail the registration if email fails
+      }
+
       res.status(201).json({ 
         message: 'User created successfully. Please check your email for verification.',
         user: {
@@ -61,8 +96,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isVerified: user.isVerified
         }
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Registration error:', error);
+      if (error.code === 11000) {
+        // Duplicate key error
+        const field = Object.keys(error.keyPattern)[0];
+        return res.status(400).json({ 
+          message: `${field.charAt(0).toUpperCase() + field.slice(1)} already exists` 
+        });
+      }
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -71,16 +113,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { email, password } = req.body;
 
+      // Validation
+      if (!email || !password) {
+        return res.status(400).json({ message: 'Email and password are required' });
+      }
+
       // Find user by email
       const user = await User.findOne({ email });
       if (!user) {
-        return res.status(400).json({ message: 'Invalid credentials' });
+        return res.status(400).json({ message: 'Invalid email or password' });
       }
 
       // Check password
       const isValidPassword = await bcrypt.compare(password, user.password);
       if (!isValidPassword) {
-        return res.status(400).json({ message: 'Invalid credentials' });
+        return res.status(400).json({ message: 'Invalid email or password' });
+      }
+
+      // Check if email is verified
+      if (!user.isVerified) {
+        return res.status(400).json({ 
+          message: 'Please verify your email before logging in',
+          needsVerification: true 
+        });
       }
 
       // Generate JWT token
@@ -120,6 +175,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { token } = req.query;
 
+      if (!token) {
+        return res.status(400).json({ message: 'Verification token is required' });
+      }
+
       const user = await User.findOne({ emailVerificationToken: token });
       if (!user) {
         return res.status(400).json({ message: 'Invalid or expired verification token' });
@@ -132,6 +191,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: 'Email verified successfully' });
     } catch (error) {
       console.error('Email verification error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/auth/resend-verification', async (req, res) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ message: 'Email is required' });
+      }
+
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      if (user.isVerified) {
+        return res.status(400).json({ message: 'Email is already verified' });
+      }
+
+      // Generate new verification token
+      const emailVerificationToken = nanoid(32);
+      user.emailVerificationToken = emailVerificationToken;
+      await user.save();
+
+      // Send verification email
+      try {
+        await sendVerificationEmail(email, emailVerificationToken);
+        res.json({ message: 'Verification email sent successfully' });
+      } catch (emailError) {
+        console.error('Failed to send verification email:', emailError);
+        res.status(500).json({ message: 'Failed to send verification email' });
+      }
+    } catch (error) {
+      console.error('Resend verification error:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
