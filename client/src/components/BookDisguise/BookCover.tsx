@@ -33,7 +33,7 @@ const BookCover: React.FC<BookCoverProps> = ({ book, onPageTurn }) => {
   return (
     <div className="relative">
       <div 
-        className={`book-page bg-gradient-to-br from-amber-100 to-amber-200 rounded-lg p-8 shadow-2xl transition-all duration-500 cursor-pointer page-turn ${isHovered ? 'transform hover:scale-105' : ''}`}
+        className={`book-page bg-gradient-to-br from-amber-100 to-amber-200 rounded-lg p-4 sm:p-6 lg:p-8 shadow-2xl transition-all duration-500 cursor-pointer page-turn ${isHovered ? 'transform hover:scale-105' : ''}`}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         onClick={onPageTurn}
@@ -42,14 +42,14 @@ const BookCover: React.FC<BookCoverProps> = ({ book, onPageTurn }) => {
         <div className="book-spine"></div>
         
         {/* Cover Content */}
-        <div className="text-center space-y-6">
+        <div className="text-center space-y-4 sm:space-y-6">
           {/* Book Icon */}
           <div className="flex justify-center">
-            <BookOpen className="w-16 h-16 text-amber-800" />
+            <BookOpen className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 text-amber-800" />
           </div>
           
           {/* Title */}
-          <h1 className="text-2xl md:text-3xl title-font font-bold text-amber-900 leading-tight">
+          <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl title-font font-bold text-amber-900 leading-tight">
             {book.title}
           </h1>
           

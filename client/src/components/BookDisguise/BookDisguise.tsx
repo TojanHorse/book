@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { useAuth } from '../../contexts/AuthContext';
 import BookCover from './BookCover';
 import BookContent from './BookContent';
-import SecretTrigger from './SecretTrigger';
+// import SecretTrigger from './SecretTrigger'; // Removed - direct chat access available
 import UserMenu from './UserMenu';
 
 interface Book {
@@ -25,7 +25,7 @@ const BookDisguise: React.FC = () => {
   const [bookContent, setBookContent] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [secretProgress, setSecretProgress] = useState(0);
+  // const [secretProgress, setSecretProgress] = useState(0); // Removed - direct chat access
   const { user } = useAuth();
   const [, setLocation] = useLocation();
 
@@ -96,30 +96,24 @@ const BookDisguise: React.FC = () => {
           .substring(0, 50000); // Limit content size
         
         setBookContent(cleanedText);
+        console.log('📄 Book content loaded, length:', cleanedText.length);
       } else {
         // Fallback content
-        setBookContent(`${book.title}\n\nBy ${book.authors.map(a => a.name).join(', ')}\n\n${book.summaries?.[0] || 'This is a classic work of literature from Project Gutenberg. The full text would be available when accessed through the proper format.'}\n\nThis digital library provides access to thousands of free eBooks from Project Gutenberg, maintaining the legacy of great literature for future generations.`);
+        const fallbackContent = `${book.title}\n\nBy ${book.authors.map(a => a.name).join(', ')}\n\n${book.summaries?.[0] || 'This is a classic work of literature from Project Gutenberg. The full text would be available when accessed through the proper format.'}\n\nThis digital library provides access to thousands of free eBooks from Project Gutenberg, maintaining the legacy of great literature for future generations.\n\n` + 
+          // Add sample content for pagination testing
+          "This is additional sample content to ensure the book has multiple pages for testing the pagination functionality. ".repeat(100);
+        setBookContent(fallbackContent);
+        console.log('📄 Fallback content loaded, length:', fallbackContent.length);
       }
     } catch (error) {
       console.error('Error fetching book content:', error);
-      setBookContent("Content unavailable. Please try again later.");
+      setBookContent("Content unavailable. Please try again later.\n\n" + 
+          // Add some extra content for testing pagination
+          "However, here is some sample content to test the pagination functionality. ".repeat(200));
     }
   };
 
-  const handleSecretClick = () => {
-    setSecretProgress(prev => {
-      const newProgress = prev + 1;
-      if (newProgress >= 5) {
-        // Secret revealed! Navigate to chat
-        setLocation('/chat');
-      }
-      return newProgress;
-    });
-  };
-
-  const resetSecretProgress = () => {
-    setSecretProgress(0);
-  };
+  // Secret trigger functions removed - direct chat access available
 
   if (isLoading) {
     return (
@@ -133,14 +127,14 @@ const BookDisguise: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100 p-2 sm:p-4">
       {/* User Menu */}
       <UserMenu user={user} />
       
-      <div className="max-w-4xl mx-auto">
-        <div className="flex flex-col lg:flex-row gap-8 items-start">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 items-start">
           {/* Book Cover */}
-          <div className="lg:w-1/3">
+          <div className="w-full lg:w-1/3">
             <BookCover 
               book={currentBook}
               onPageTurn={() => setCurrentPage(1)}
@@ -148,7 +142,7 @@ const BookDisguise: React.FC = () => {
           </div>
           
           {/* Book Content */}
-          <div className="lg:w-2/3">
+          <div className="w-full lg:w-2/3">
             <BookContent 
               book={currentBook}
               content={bookContent}
@@ -158,12 +152,7 @@ const BookDisguise: React.FC = () => {
           </div>
         </div>
         
-        {/* Secret Trigger */}
-        <SecretTrigger 
-          progress={secretProgress}
-          onSecretClick={handleSecretClick}
-          onReset={resetSecretProgress}
-        />
+        {/* Secret trigger removed - chat accessible directly */}
       </div>
     </div>
   );

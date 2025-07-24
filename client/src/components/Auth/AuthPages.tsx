@@ -8,23 +8,47 @@ const LoginForm: React.FC = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const { login } = useAuth();
   const [, setLocation] = useLocation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
     
-    const success = await login(email, password);
-    console.log('Login result:', success);
-    if (success) {
-      console.log('Redirecting to /book');
-      setLocation('/book');
-    } else {
-      console.log('Login failed, staying on login page');
+    try {
+      const result = await login(email, password);
+      console.log('Login result:', result);
+      
+      if (result.success) {
+        console.log('Login successful, redirecting to /book');
+        setIsRedirecting(true);
+        
+        // Use setTimeout to ensure state updates complete before navigation
+        setTimeout(() => {
+          setLocation('/book');
+        }, 500);
+      } else if (result.needsVerification) {
+        console.log('User needs verification, redirecting to verification page');
+        setIsRedirecting(true);
+        
+        setTimeout(() => {
+          setLocation('/verify-email');
+        }, 500);
+      } else {
+        console.log('Login failed, staying on login page');
+        setError('Login failed. Please check your credentials.');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      if (!isRedirecting) {
+        setIsLoading(false);
+      }
     }
-    
-    setIsLoading(false);
   };
 
   return (
@@ -40,6 +64,18 @@ const LoginForm: React.FC = () => {
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-lg p-8 book-spine">
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg book-font text-sm">
+            {error}
+          </div>
+        )}
+        
+        {isRedirecting && (
+          <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded-lg book-font text-sm">
+            Redirecting to your library...
+          </div>
+        )}
+
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2 book-font">
             Email Address
@@ -83,10 +119,10 @@ const LoginForm: React.FC = () => {
 
         <button
           type="submit"
-          disabled={isLoading}
+          disabled={isLoading || isRedirecting}
           className="w-full bg-amber-700 text-white py-3 px-4 rounded-lg hover:bg-amber-800 transition-colors disabled:opacity-50 book-font font-medium"
         >
-          {isLoading ? 'Signing In...' : 'Sign In'}
+          {isRedirecting ? 'Redirecting...' : isLoading ? 'Signing In...' : 'Sign In'}
         </button>
 
         <div className="mt-6 text-center">
@@ -110,6 +146,7 @@ const RegisterForm: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const { register } = useAuth();
   const [, setLocation] = useLocation();
 
@@ -128,13 +165,33 @@ const RegisterForm: React.FC = () => {
     }
 
     setIsLoading(true);
-    const success = await register(username, email, password);
     
-    if (success) {
-      setLocation('/auth/login');
+    try {
+      const success = await register(username, email, password);
+      
+      if (success) {
+        console.log('Registration successful, redirecting to login');
+        setIsRedirecting(true);
+        
+        // Clear form data
+        setUsername('');
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
+        
+        // Use setTimeout to ensure state updates complete before navigation
+        setTimeout(() => {
+          setLocation('/auth/login');
+        }, 1000);
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      setError('Registration failed. Please try again.');
+    } finally {
+      if (!isRedirecting) {
+        setIsLoading(false);
+      }
     }
-    
-    setIsLoading(false);
   };
 
   return (
@@ -153,6 +210,12 @@ const RegisterForm: React.FC = () => {
         {error && (
           <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg book-font text-sm">
             {error}
+          </div>
+        )}
+        
+        {isRedirecting && (
+          <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded-lg book-font text-sm">
+            Registration successful! Redirecting to login...
           </div>
         )}
 
@@ -233,10 +296,10 @@ const RegisterForm: React.FC = () => {
 
         <button
           type="submit"
-          disabled={isLoading}
+          disabled={isLoading || isRedirecting}
           className="w-full bg-amber-700 text-white py-3 px-4 rounded-lg hover:bg-amber-800 transition-colors disabled:opacity-50 book-font font-medium"
         >
-          {isLoading ? 'Creating Account...' : 'Create Account'}
+          {isRedirecting ? 'Redirecting...' : isLoading ? 'Creating Account...' : 'Create Account'}
         </button>
 
         <div className="mt-6 text-center">

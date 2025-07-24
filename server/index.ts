@@ -1,10 +1,27 @@
+import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { disconnectDatabase } from "./config/database";
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+
+// Production security middleware
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+  
+  // Add security headers
+  app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    next();
+  });
+}
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -56,15 +73,57 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
+  // Use PORT from environment or default to 3001
+  const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
+  const host = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
+  
   server.listen({
     port,
-    host: "0.0.0.0",
-    reusePort: true,
+    host,
   }, () => {
-    log(`serving on port ${port}`);
+    log(`🚀 Server running on http://${host}:${port}`);
+    log(`📱 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
+    log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   });
+
+  // Graceful shutdown handling
+  const gracefulShutdown = async (signal: string) => {
+    log(`\n⚠️ Received ${signal}. Starting graceful shutdown...`);
+    
+    server.close(async () => {
+      log('🔒 HTTP server closed');
+      
+      try {
+        await disconnectDatabase();
+        log('🔌 Database disconnected');
+        log('✅ Graceful shutdown completed');
+        process.exit(0);
+      } catch (error) {
+        log('❌ Error during shutdown:', String(error));
+        process.exit(1);
+      }
+    });
+    
+    // Force close server after 30s
+    setTimeout(() => {
+      log('❌ Could not close connections in time, forcefully shutting down');
+      process.exit(1);
+    }, 30000);
+  };
+
+  // Handle shutdown signals
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+  
+  // Handle uncaught exceptions
+  process.on('uncaughtException', (error) => {
+    console.error('❌ Uncaught Exception:', error);
+    gracefulShutdown('uncaughtException');
+  });
+  
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+    gracefulShutdown('unhandledRejection');
+  });
+
 })();

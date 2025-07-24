@@ -10,17 +10,19 @@ interface ChatWindowProps {
   conversation: Conversation;
   currentUserId: string;
   onConversationUpdate: (conversation: Conversation) => void;
+  onBackClick?: () => void;
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({
   conversation,
   currentUserId,
-  onConversationUpdate
+  onConversationUpdate,
+  onBackClick
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
-  const { joinConversation, typingUsers } = useSocket();
+  const { joinConversation, sendMessage, startTyping, stopTyping, typingUsers } = useSocket();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Check if someone is typing in this conversation
@@ -42,7 +44,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   // Listen for new messages
   useEffect(() => {
     const handleNewMessage = (event: CustomEvent) => {
-      const { message, conversation: updatedConversation } = event.detail;
+      const message = event.detail;
+      console.log('Received new message:', message);
       
       if (message.conversationId === conversation._id) {
         setMessages(prev => {
@@ -52,16 +55,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           }
           return [...prev, message];
         });
-        
-        // Update conversation in parent
-        if (updatedConversation) {
-          onConversationUpdate(updatedConversation);
-        }
       }
     };
 
     const handleMessageSent = (event: CustomEvent) => {
       const { message, tempId } = event.detail;
+      console.log('Message sent confirmation:', { message, tempId });
       
       setMessages(prev => {
         // Replace temporary message or add new one
@@ -94,10 +93,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const loadMessages = async () => {
     try {
       setIsLoading(true);
-      const response = await axios.get(`/chat/conversations/${conversation._id}/messages`);
-      setMessages(response.data.messages);
+      const response = await axios.get(`/chat/messages/${conversation._id}`);
+      setMessages(response.data || []);
     } catch (error) {
       console.error('Error loading messages:', error);
+      setMessages([]);
     } finally {
       setIsLoading(false);
     }
@@ -126,7 +126,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
 
     // Send via socket
-    useSocket().sendMessage(
+    sendMessage(
       conversation.otherParticipant.uniqueAppId,
       content,
       messageType,
@@ -138,14 +138,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const handleTypingStart = () => {
     if (!isTyping && conversation._id !== 'temp') {
       setIsTyping(true);
-      useSocket().startTyping(conversation._id);
+      startTyping(conversation._id);
     }
   };
 
   const handleTypingStop = () => {
     if (isTyping && conversation._id !== 'temp') {
       setIsTyping(false);
-      useSocket().stopTyping(conversation._id);
+      stopTyping(conversation._id);
     }
   };
 
@@ -165,6 +165,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       <ChatHeader 
         conversation={conversation}
         currentUserId={currentUserId}
+        onBackClick={onBackClick}
       />
       
       <div className="flex-1 overflow-hidden">

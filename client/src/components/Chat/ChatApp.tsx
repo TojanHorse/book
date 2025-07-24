@@ -47,6 +47,7 @@ const ChatApp: React.FC = () => {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [showUserSearch, setShowUserSearch] = useState(false);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(true);
 
   // Load conversations on mount
   useEffect(() => {
@@ -55,10 +56,14 @@ const ChatApp: React.FC = () => {
 
   const loadConversations = async () => {
     try {
+      setIsLoadingConversations(true);
       const response = await axios.get('/chat/conversations');
-      setConversations(response.data.conversations);
+      setConversations(response.data || []);
     } catch (error) {
       console.error('Error loading conversations:', error);
+      setConversations([]);
+    } finally {
+      setIsLoadingConversations(false);
     }
   };
 
@@ -101,8 +106,8 @@ const ChatApp: React.FC = () => {
 
   return (
     <div className="h-screen bg-gray-100 flex overflow-hidden">
-      {/* Sidebar */}
-      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+      {/* Sidebar - Hidden on mobile when conversation is selected */}
+      <div className={`${selectedConversation ? 'hidden md:flex' : 'flex'} w-full md:w-80 bg-white border-r border-gray-200 flex-col`}>
         <ChatSidebar
           conversations={conversations}
           selectedConversation={selectedConversation}
@@ -110,16 +115,18 @@ const ChatApp: React.FC = () => {
           onNewChat={() => setShowUserSearch(true)}
           currentUserId={user?.uniqueAppId || ''}
           isConnected={isConnected}
+          isLoadingConversations={isLoadingConversations}
         />
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className={`${selectedConversation ? 'flex' : 'hidden md:flex'} flex-1 flex-col`}>
         {selectedConversation ? (
           <ChatWindow
             conversation={selectedConversation}
             currentUserId={user?.uniqueAppId || ''}
             onConversationUpdate={handleConversationUpdate}
+            onBackClick={() => setSelectedConversation(null)}
           />
         ) : (
           <WelcomeScreen 

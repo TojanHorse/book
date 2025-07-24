@@ -4,16 +4,53 @@ import { Server as SocketIOServer } from "socket.io";
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { nanoid } from 'nanoid';
+import multer from 'multer';
+import { v2 as cloudinary } from 'cloudinary';
 import { connectDatabase } from './config/database';
 import { User } from './models/User';
 import { Conversation } from './models/Conversation';
 import { Message } from './models/Message';
 import { authenticateToken, AuthRequest } from './middleware/auth';
 import { sendVerificationEmail } from './utils/emailService';
+import { AuthenticatedSocket } from './types/socket';
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Configure multer for file upload
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  }
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Connect to MongoDB
   await connectDatabase();
+
+  // Health check endpoint for Render
+  app.get('/health', (req, res) => {
+    res.status(200).json({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV,
+      uptime: process.uptime()
+    });
+  });
+
+  // Root endpoint
+  app.get('/api', (req, res) => {
+    res.json({ 
+      message: 'Book Chat API is running',
+      version: '1.0.0',
+      environment: process.env.NODE_ENV
+    });
+  });
 
   // Auth routes
   app.post('/api/auth/register', async (req, res) => {
@@ -90,7 +127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`📧 Email sending status for ${email}:`, emailSent ? 'SUCCESS' : 'FAILED');
       if (process.env.NODE_ENV === 'development') {
-        console.log(`🔗 Manual verification link: http://localhost:5000/api/auth/verify-email?token=${emailVerificationToken}`);
+        console.log(`🔗 Manual verification link: http://localhost:${process.env.PORT || 3001}/api/auth/verify-email?token=${emailVerificationToken}`);
       }
 
       res.status(201).json({ 
@@ -104,7 +141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         // Include verification link in response for development/testing
         ...(process.env.NODE_ENV === 'development' && {
-          verificationLink: `http://localhost:5000/api/auth/verify-email?token=${emailVerificationToken}`
+          verificationLink: `http://localhost:${process.env.PORT || 3001}/api/auth/verify-email?token=${emailVerificationToken}`
         })
       });
     } catch (error: any) {
@@ -295,6 +332,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Book routes
+  app.get('/api/books/random', async (req, res) => {
+    try {
+      // Fetch random book from Gutendex API
+      const randomPage = Math.floor(Math.random() * 10) + 1;
+      const response = await fetch(`https://gutendex.org/books/?page=${randomPage}`);
+      const data = await response.json();
+      
+      if (data.results && data.results.length > 0) {
+        const randomBook = data.results[Math.floor(Math.random() * data.results.length)];
+        res.json(randomBook);
+      } else {
+        // Fallback book
+        res.json({
+          id: 1,
+          title: "Pride and Prejudice",
+          authors: [{ name: "Jane Austen", birth_year: 1775, death_year: 1817 }],
+          subjects: ["England -- Social life and customs -- 19th century -- Fiction"],
+          languages: ["en"],
+          formats: {},
+          summaries: ["A classic tale of love, society, and personal growth in Regency England."]
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching random book:', error);
+      res.status(500).json({ message: 'Failed to fetch book' });
+    }
+  });
+
+  app.get('/api/books/search', async (req, res) => {
+    try {
+      const { query, page = 1 } = req.query;
+      
+      if (!query) {
+        return res.status(400).json({ message: 'Search query is required' });
+      }
+
+      const response = await fetch(`https://gutendex.org/books/?search=${encodeURIComponent(query as string)}&page=${page}`);
+      const data = await response.json();
+      
+      res.json(data);
+    } catch (error) {
+      console.error('Error searching books:', error);
+      res.status(500).json({ message: 'Failed to search books' });
+    }
+  });
+
+  app.get('/api/books/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const response = await fetch(`https://gutendex.org/books/${id}`);
+      
+      if (!response.ok) {
+        return res.status(404).json({ message: 'Book not found' });
+      }
+      
+      const book = await response.json();
+      res.json(book);
+    } catch (error) {
+      console.error('Error fetching book:', error);
+      res.status(500).json({ message: 'Failed to fetch book' });
+    }
+  });
+
+  // File upload route
+  app.post('/api/upload', authenticateToken, upload.single('file'), async (req: AuthRequest, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+
+      const { buffer, mimetype, originalname, size } = req.file;
+      
+      // Upload to Cloudinary
+      const uploadResult = await new Promise((resolve, reject) => {
+        cloudinary.uploader.upload_stream(
+          {
+            resource_type: 'auto',
+            folder: 'chat-files',
+            public_id: `${Date.now()}-${originalname}`,
+          },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        ).end(buffer);
+      });
+
+      const result = uploadResult as any;
+      
+      res.json({
+        url: result.secure_url,
+        publicId: result.public_id,
+        fileName: originalname,
+        fileType: mimetype,
+        fileSize: size
+      });
+    } catch (error) {
+      console.error('File upload error:', error);
+      res.status(500).json({ message: 'File upload failed' });
+    }
+  });
+
   // Chat routes
   app.get('/api/chat/conversations', authenticateToken, async (req: AuthRequest, res) => {
     try {
@@ -366,7 +506,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const usersWithLinks = users.map(user => ({
           ...user.toObject(),
           verificationLink: user.emailVerificationToken 
-            ? `http://localhost:5000/api/auth/verify-email?token=${user.emailVerificationToken}`
+            ? `http://localhost:${process.env.PORT || 3001}/api/auth/verify-email?token=${user.emailVerificationToken}`
             : null
         }));
 
@@ -383,67 +523,189 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   
-  // Setup Socket.IO
+  // Setup Socket.IO with authentication
   const io = new SocketIOServer(httpServer, {
     cors: {
-      origin: "*",
-      methods: ["GET", "POST"]
+      origin: process.env.NODE_ENV === 'production' 
+        ? [process.env.FRONTEND_URL, process.env.RENDER_EXTERNAL_URL].filter(Boolean) as string[]
+        : "*",
+      methods: ["GET", "POST"],
+      credentials: true
+    },
+    transports: process.env.NODE_ENV === 'production' 
+      ? ['websocket', 'polling'] 
+      : ['websocket', 'polling'],
+    pingTimeout: 60000,
+    pingInterval: 25000,
+    maxHttpBufferSize: 1e6, // 1MB
+    allowEIO3: true
+  });
+
+  // Store connected users
+  const connectedUsers = new Map();
+
+  // Socket authentication middleware
+  io.use(async (socket, next) => {
+    try {
+      const token = socket.handshake.auth.token;
+      if (!token) {
+        return next(new Error('Authentication error'));
+      }
+
+      const jwtSecret = process.env.JWT_SECRET;
+      if (!jwtSecret) {
+        return next(new Error('Server configuration error'));
+      }
+
+      const decoded = jwt.verify(token, jwtSecret) as any;
+      const user = await User.findById(decoded.userId);
+      
+      if (!user) {
+        return next(new Error('User not found'));
+      }
+
+      (socket as AuthenticatedSocket).userId = user._id.toString();
+      (socket as AuthenticatedSocket).user = user;
+      next();
+    } catch (error) {
+      next(new Error('Authentication failed'));
     }
   });
 
   io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
+    const authSocket = socket as AuthenticatedSocket;
+    console.log(`User connected: ${authSocket.user.username} (${socket.id})`);
+    
+    // Store user connection
+    connectedUsers.set(authSocket.userId, {
+      socketId: socket.id,
+      userId: authSocket.userId,
+      username: authSocket.user.username,
+      uniqueAppId: authSocket.user.uniqueAppId
+    });
 
-    socket.on('join_conversation', (conversationId) => {
+    // Broadcast user online status
+    socket.broadcast.emit('user_online', { userId: authSocket.userId });
+
+    socket.on('join_conversation', (data) => {
+      const { conversationId } = data;
       socket.join(conversationId);
+      console.log(`User ${authSocket.user.username} joined conversation ${conversationId}`);
     });
 
     socket.on('send_message', async (data) => {
       try {
-        const { recipientId, content, messageType = 'text', fileData } = data;
+        const { recipientId, content, messageType = 'text', fileData, tempId } = data;
+        const senderId = authSocket.userId;
         
+        console.log('Processing message:', { senderId, recipientId, content: content.substring(0, 50) });
+
+        // Find recipient by uniqueAppId
+        const recipient = await User.findOne({ uniqueAppId: recipientId });
+        if (!recipient) {
+          socket.emit('error', { message: 'Recipient not found' });
+          return;
+        }
+
+        const recipientUserId = recipient._id.toString();
+
         // Create or find conversation
         let conversation = await Conversation.findOne({
-          participants: { $all: [data.senderId, recipientId] }
+          participants: { $all: [senderId, recipientUserId] }
         });
 
         if (!conversation) {
           conversation = new Conversation({
-            participants: [data.senderId, recipientId],
+            participants: [senderId, recipientUserId],
             type: 'direct'
           });
           await conversation.save();
+          console.log('Created new conversation:', conversation._id);
         }
 
         // Create message
         const message = new Message({
           conversationId: conversation._id,
-          senderId: data.senderId,
+          senderId: senderId,
           messageType,
           content,
-          ...fileData
+          ...(fileData || {})
         });
 
         await message.save();
+        console.log('Message saved:', message._id);
 
         // Update conversation
         conversation.lastMessage = {
           content,
-          senderId: data.senderId,
+          senderId: senderId,
           messageType
         };
         conversation.lastMessageAt = new Date();
         await conversation.save();
 
-        // Emit to conversation room
-        io.to(conversation._id.toString()).emit('new_message', message);
+        const messageData = {
+          ...message.toObject(),
+          sender: {
+            _id: authSocket.userId,
+            username: authSocket.user.username,
+            uniqueAppId: authSocket.user.uniqueAppId
+          },
+          tempId
+        };
+
+        // Emit to conversation room (including sender)
+        io.to(conversation._id.toString()).emit('new_message', messageData);
+
+        // Also emit directly to recipient if they're not in the conversation room
+        const recipientConnection = Array.from(connectedUsers.values()).find(
+          user => user.uniqueAppId === recipientId
+        );
+        if (recipientConnection) {
+          io.to(recipientConnection.socketId).emit('new_conversation_message', {
+            ...messageData,
+            conversationId: conversation._id
+          });
+        }
+
+        // Confirm message was sent
+        socket.emit('message_sent', {
+          tempId,
+          message: message.toObject()
+        });
+
       } catch (error) {
         console.error('Send message error:', error);
+        socket.emit('error', { message: 'Failed to send message' });
       }
     });
 
+    // Typing indicators
+    socket.on('typing_start', (data) => {
+      const { conversationId } = data;
+      socket.to(conversationId).emit('user_typing', {
+        userId: authSocket.userId,
+        username: authSocket.user.username,
+        conversationId
+      });
+    });
+
+    socket.on('typing_stop', (data) => {
+      const { conversationId } = data;
+      socket.to(conversationId).emit('user_stopped_typing', {
+        userId: authSocket.userId,
+        conversationId
+      });
+    });
+
     socket.on('disconnect', () => {
-      console.log('User disconnected:', socket.id);
+      console.log(`User disconnected: ${authSocket.user.username} (${socket.id})`);
+      
+      // Remove user from connected users
+      connectedUsers.delete(authSocket.userId);
+      
+      // Broadcast user offline status
+      socket.broadcast.emit('user_offline', { userId: authSocket.userId });
     });
   });
 

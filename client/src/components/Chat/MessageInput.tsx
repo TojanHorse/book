@@ -72,48 +72,20 @@ const MessageInput: React.FC<MessageInputProps> = ({
     multiple: false
   });
 
-  const uploadToCloudinary = async (file: File): Promise<any> => {
+  const uploadFile = async (file: File): Promise<any> => {
     try {
       setIsUploading(true);
 
-      // Get upload signature from backend
-      const fileType = getFileType(file);
-      const signatureResponse = await axios.post('/files/upload-signature', { 
-        fileType,
-        resourceType: fileType === 'video' ? 'video' : 'auto'
-      });
-
-      const signature = signatureResponse.data;
-
-      // Upload to Cloudinary
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('signature', signature.signature);
-      formData.append('timestamp', signature.timestamp.toString());  
-      formData.append('api_key', signature.api_key);
-      formData.append('public_id', signature.public_id);
 
-      const uploadResponse = await fetch(
-        `https://api.cloudinary.com/v1_1/${signature.cloud_name}/${signature.resource_type}/upload`,
-        {
-          method: 'POST',
-          body: formData
-        }
-      );
+      const response = await axios.post('/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
 
-      if (!uploadResponse.ok) {
-        throw new Error('Upload failed');
-      }
-
-      const result = await uploadResponse.json();
-
-      return {
-        url: result.secure_url,
-        publicId: result.public_id,
-        fileName: file.name,
-        fileType: file.type,
-        fileSize: file.size
-      };
+      return response.data;
 
     } catch (error) {
       console.error('Upload error:', error);
@@ -130,12 +102,13 @@ const MessageInput: React.FC<MessageInputProps> = ({
     // Handle file upload
     if (pendingFile) {
       try {
-        const fileData = await uploadToCloudinary(pendingFile.file);
-        onSendMessage('', pendingFile.type, fileData);
+        const fileData = await uploadFile(pendingFile.file);
+        onSendMessage(message.trim() || '', pendingFile.type, fileData);
         setPendingFile(null);
+        setMessage('');
         toast.success('File sent successfully');
       } catch (error) {
-        // Error already handled in uploadToCloudinary
+        // Error already handled in uploadFile
       }
       return;
     }
@@ -228,19 +201,19 @@ const MessageInput: React.FC<MessageInputProps> = ({
       )}
 
       {/* Input Area */}
-      <div className="p-4">
-        <div className="flex items-end space-x-3">
+      <div className="p-2 sm:p-4">
+        <div className="flex items-end space-x-2 sm:space-x-3">
           {/* File Upload */}
           <div {...getRootProps()} className="flex-shrink-0">
             <input {...getInputProps()} />
             <button
               type="button"
-              className={`p-2 text-gray-500 hover:text-blue-600 transition-colors ${
+              className={`p-1.5 sm:p-2 text-gray-500 hover:text-blue-600 transition-colors ${
                 isDragActive ? 'text-blue-600 bg-blue-50' : ''
               }`}
               disabled={isUploading}
             >
-              <Paperclip className="w-5 h-5" />
+              <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
 
@@ -252,10 +225,10 @@ const MessageInput: React.FC<MessageInputProps> = ({
               onChange={handleInputChange}
               onKeyPress={handleKeyPress}
               placeholder={pendingFile ? "Add a caption..." : "Type a message..."}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-2 sm:px-4 py-2 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
               rows={1}
               style={{
-                minHeight: '40px',
+                minHeight: '36px',
                 maxHeight: '120px',
                 resize: 'none'
               }}
@@ -267,12 +240,12 @@ const MessageInput: React.FC<MessageInputProps> = ({
           <button
             onClick={handleSend}
             disabled={(!message.trim() && !pendingFile) || isUploading}
-            className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="p-1.5 sm:p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isUploading ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
-              <Send className="w-5 h-5" />
+              <Send className="w-4 h-4 sm:w-5 sm:h-5" />
             )}
           </button>
         </div>

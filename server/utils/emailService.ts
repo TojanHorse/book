@@ -11,7 +11,7 @@ const transporter = nodemailer.createTransport({
 export const sendVerificationEmail = async (email: string, token: string): Promise<void> => {
   const verificationUrl = `${process.env.NODE_ENV === 'production' 
     ? 'https://your-domain.replit.app' 
-    : 'http://localhost:5000'}/api/auth/verify-email?token=${token}`;
+    : `http://localhost:${process.env.PORT || 3001}`}/api/auth/verify-email?token=${token}`;
 
   const mailOptions = {
     from: `"Digital Library" <${process.env.EMAIL_USER}>`,
@@ -65,7 +65,7 @@ export const sendVerificationEmail = async (email: string, token: string): Promi
 export const sendPasswordResetEmail = async (email: string, token: string): Promise<void> => {
   const resetUrl = `${process.env.NODE_ENV === 'production' 
     ? 'https://your-domain.replit.app' 
-    : 'http://localhost:5000'}/reset-password?token=${token}`;
+    : `http://localhost:${process.env.PORT || 3001}`}/reset-password?token=${token}`;
 
   const mailOptions = {
     from: process.env.EMAIL_USER,

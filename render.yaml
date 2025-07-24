@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: book-chat-app
+    env: node
+    buildCommand: npm run render-build
+    startCommand: npm run render-start
+    plan: free
+    region: oregon
+    branch: main
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        generateValue: true
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        fromService:
+          type: web
+          name: book-chat-app
+          property: host
+      - key: RENDER_EXTERNAL_URL
+        fromService:
+          type: web
+          name: book-chat-app
+          property: host
+    buildFilter:
+      paths:
+        - client/**
+        - server/**
+        - shared/**
+        - package.json
+        - package-lock.json
+        - vite.config.ts
+        - tsconfig.json
+        - tailwind.config.ts

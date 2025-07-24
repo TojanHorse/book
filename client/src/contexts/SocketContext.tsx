@@ -54,7 +54,8 @@ interface SocketContextType {
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 
+  (import.meta.env.PROD ? window.location.origin : 'http://localhost:3001');
 
 interface SocketProviderProps {
   children: ReactNode;
@@ -73,7 +74,12 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
         auth: {
           token
         },
-        transports: ['websocket', 'polling']
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        timeout: 20000,
+        forceNew: false
       });
 
       setSocket(newSocket);
@@ -91,12 +97,26 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
 
       newSocket.on('connect_error', (error) => {
         console.error('Socket connection error:', error);
-        toast.error('Failed to connect to chat server');
+        if (error.message.includes('Authentication')) {
+          toast.error('Chat authentication failed. Please refresh the page.');
+        } else {
+          toast.error('Failed to connect to chat server. Retrying...');
+        }
+      });
+
+      newSocket.on('reconnect', (attemptNumber) => {
+        console.log('Reconnected to chat server after', attemptNumber, 'attempts');
+        toast.success('Chat reconnected');
+      });
+
+      newSocket.on('reconnect_failed', () => {
+        console.error('Failed to reconnect to chat server');
+        toast.error('Chat connection failed. Please refresh the page.');
       });
 
       // User status events
       newSocket.on('user_online', (data) => {
-        setOnlineUsers(prev => new Set([...prev, data.userId]));
+        setOnlineUsers(prev => new Set([...Array.from(prev), data.userId]));
       });
 
       newSocket.on('user_offline', (data) => {
@@ -173,19 +193,28 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     fileData?: any,
     tempId?: string
   ) => {
-    if (socket && isConnected) {
+    if (socket && isConnected && user) {
+      console.log('Sending message:', { recipientId, content: content.substring(0, 50), messageType });
       socket.emit('send_message', {
+        senderId: user.uniqueAppId,
         recipientId,
         content,
         messageType,
         fileData,
         tempId
       });
+    } else {
+      console.error('Cannot send message - socket not connected or user not authenticated', {
+        socket: !!socket,
+        isConnected,
+        user: !!user
+      });
     }
   };
 
   const joinConversation = (conversationId: string) => {
     if (socket && isConnected) {
+      console.log('Joining conversation:', conversationId);
       socket.emit('join_conversation', { conversationId });
     }
   };

@@ -11,6 +11,7 @@ interface ChatSidebarProps {
   onNewChat: () => void;
   currentUserId: string;
   isConnected: boolean;
+  isLoadingConversations?: boolean;
 }
 
 const ChatSidebar: React.FC<ChatSidebarProps> = ({
@@ -19,7 +20,8 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   onConversationSelect,
   onNewChat,
   currentUserId,
-  isConnected
+  isConnected,
+  isLoadingConversations = false
 }) => {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
@@ -57,11 +59,11 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 bg-white">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
-            <MessageCircle className="w-6 h-6 text-blue-600" />
-            <h1 className="text-xl font-semibold text-gray-800">Messages</h1>
+      <div className="p-3 sm:p-4 border-b border-gray-200 bg-white">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+            <h1 className="text-lg sm:text-xl font-semibold text-gray-800">Messages</h1>
           </div>
           
           <div className="flex items-center space-x-2">
@@ -85,14 +87,15 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
         </div>
 
         {/* User Info */}
-        <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-              <User className="w-4 h-4 text-blue-600" />
+        <div className="flex items-center justify-between bg-gray-50 rounded-lg p-2 sm:p-3">
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-100 rounded-full flex items-center justify-center">
+              <User className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
             </div>
             <div>
-              <p className="font-medium text-gray-800 text-sm">{user?.username}</p>
-              <p className="text-xs text-gray-500">ID: {user?.uniqueAppId}</p>
+              <p className="font-medium text-gray-800 text-xs sm:text-sm">{user?.username}</p>
+              <p className="text-xs text-gray-500 hidden sm:block">ID: {user?.uniqueAppId}</p>
+              <p className="text-xs text-gray-500 sm:hidden">ID: {user?.uniqueAppId?.substring(0, 8)}</p>
             </div>
           </div>
           
@@ -107,16 +110,21 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
         {/* New Chat Button */}
         <button
           onClick={onNewChat}
-          className="w-full mt-4 flex items-center justify-center space-x-2 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+          className="w-full mt-3 sm:mt-4 flex items-center justify-center space-x-1 sm:space-x-2 bg-blue-600 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-blue-700 transition-colors"
         >
-          <Plus className="w-4 h-4" />
-          <span>New Chat</span>
+          <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+          <span className="text-sm sm:text-base">New Chat</span>
         </button>
       </div>
 
       {/* Conversations List */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {conversations.length === 0 ? (
+        {isLoadingConversations ? (
+          <div className="p-4 text-center text-gray-500">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+            <p className="text-sm">Loading conversations...</p>
+          </div>
+        ) : !conversations || conversations.length === 0 ? (
           <div className="p-4 text-center text-gray-500">
             <MessageCircle className="w-12 h-12 mx-auto mb-2 text-gray-300" />
             <p className="text-sm">No conversations yet</p>

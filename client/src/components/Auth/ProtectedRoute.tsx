@@ -8,10 +8,11 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, token } = useAuth();
 
-  console.log('ProtectedRoute - isLoading:', isLoading, 'user:', user);
+  console.log('ProtectedRoute - isLoading:', isLoading, 'user:', user, 'token:', !!token);
 
+  // Show loading screen while authentication is being checked
   if (isLoading) {
     console.log('ProtectedRoute - showing loading screen');
     return (
@@ -24,17 +25,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     );
   }
 
-  if (!user) {
-    console.log('ProtectedRoute - no user, redirecting to login');
+  // If no user or token, redirect to login
+  if (!user || !token) {
+    console.log('ProtectedRoute - no user/token, redirecting to login');
     return <Redirect to="/auth/login" />;
   }
 
-  if (!user.isVerified) {
+  // If user exists but is not verified, redirect to verification
+  if (user && !user.isVerified) {
     console.log('ProtectedRoute - user not verified, redirecting to verification');
     return <Redirect to="/verify-email" />;
   }
 
-  console.log('ProtectedRoute - user authenticated, rendering protected content');
+  // User is authenticated and verified
+  console.log('ProtectedRoute - user authenticated and verified, rendering protected content');
   return <>{children}</>;
 };
 

@@ -8,9 +8,10 @@ import toast from 'react-hot-toast';
 interface ChatHeaderProps {
   conversation: Conversation;
   currentUserId: string;
+  onBackClick?: () => void;
 }
 
-const ChatHeader: React.FC<ChatHeaderProps> = ({ conversation, currentUserId }) => {
+const ChatHeader: React.FC<ChatHeaderProps> = ({ conversation, currentUserId, onBackClick }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [, setLocation] = useLocation();
 
@@ -45,8 +46,8 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ conversation, currentUserId }) 
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <button  
-            onClick={() => setLocation('/chat')}
-            className="p-1 text-gray-600 hover:text-gray-800 lg:hidden"
+            onClick={onBackClick || (() => setLocation('/chat'))}
+            className="p-1 text-gray-600 hover:text-gray-800 md:hidden"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>

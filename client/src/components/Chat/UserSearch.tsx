@@ -29,9 +29,10 @@ const UserSearch: React.FC<UserSearchProps> = ({ onSelectUser, onClose }) => {
   const searchUsers = async () => {
     try {
       setIsSearching(true);
-      const response = await axios.get(`/chat/users/search/${encodeURIComponent(searchTerm)}`);
-      setSearchResults(response.data.users);
+      const response = await axios.get(`/users/search?query=${encodeURIComponent(searchTerm)}`);
+      setSearchResults(response.data || []);
     } catch (error) {
+      console.error('User search error:', error);
       toast.error('Failed to search users');
       setSearchResults([]);
     } finally {

@@ -11,10 +11,15 @@ interface User {
   lastActive?: string;
 }
 
+interface LoginResult {
+  success: boolean;
+  needsVerification?: boolean;
+}
+
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<LoginResult>;
   register: (username: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
   verifyEmail: (token: string) => Promise<boolean>;
@@ -72,7 +77,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     checkAuth();
   }, [token]);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<LoginResult> => {
     try {
       const response = await axios.post('/auth/login', { email, password });
       const { token: newToken, user: userData } = response.data;
@@ -83,15 +88,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       console.log('✅ Login successful, user data:', userData);
       toast.success(`Welcome back, ${userData.username}!`);
-      return true;
+      return { success: true };
     } catch (error: any) {
       const message = error.response?.data?.message || 'Login failed';
       toast.error(message);
       
       if (error.response?.data?.needsVerification) {
-        return false; // Will redirect to verification
+        return { success: false, needsVerification: true };
       }
-      return false;
+      return { success: false };
     }
   };
 
