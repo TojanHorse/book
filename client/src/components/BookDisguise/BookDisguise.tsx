@@ -41,17 +41,23 @@ const BookDisguise: React.FC = () => {
         const randomPage = Math.floor(Math.random() * 10) + 1;
         const response = await fetch(`https://gutendex.org/books/?page=${randomPage}`);
         const data = await response.json();
+        console.log('📖 Book data received, results count:', data.results?.length || 0);
         
         if (data.results && data.results.length > 0) {
           // Pick a random book from the results
           const randomBook = data.results[Math.floor(Math.random() * data.results.length)];
+          console.log('📘 Selected book:', randomBook.title);
           setCurrentBook(randomBook);
           
           // Try to fetch the book content
           await fetchBookContent(randomBook);
+        } else {
+          throw new Error('No books found in API response');
         }
       } catch (error) {
-        console.error('Error fetching book:', error);
+        console.error('❌ Error fetching book:', error);
+        console.log('🔄 Using fallback book data due to API issue...');
+        
         // Fallback book data
         setCurrentBook({
           id: 1,
@@ -62,9 +68,10 @@ const BookDisguise: React.FC = () => {
           formats: {},
           summaries: ["A classic tale of love, society, and personal growth in Regency England."]
         });
-        setBookContent("Welcome to this classic tale. The actual content would be displayed here when fetched from Project Gutenberg...");
+        setBookContent("Welcome to this classic tale of Pride and Prejudice by Jane Austen.\n\nIt is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.\n\nHowever little known the feelings or views of such a man may be on his first entering a neighbourhood, this truth is so well fixed in the minds of the surrounding families, that he is considered the rightful property of some one or other of their daughters.\n\nThis digital library provides access to classic literature. Click around to explore the interface and discover what lies beneath the surface...");
       } finally {
         setIsLoading(false);
+        console.log('✅ Book loading complete');
       }
     };
 
